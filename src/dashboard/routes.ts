@@ -126,6 +126,33 @@ function layout(title: string, body: string): string {
     transition: border-color .25s var(--ease), transform .25s var(--ease), box-shadow .25s var(--ease);
   }
   .card:hover { border-color: var(--text-3); transform: translateY(-2px); box-shadow: 0 6px 20px -8px rgba(0,0,0,.15); }
+  .landing-shell { display: flex; flex-direction: column; min-height: 100dvh; }
+  .landing-hero-row { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 32px; padding: 16px 0 40px; }
+  .landing-copy { text-align: left; }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin-bottom: 14px; }
+  .landing-features { display: flex; flex-direction: column; gap: 9px; margin-top: 28px; font-size: 13px; color: var(--text-2); }
+  .landing-features .tick { color: var(--text); margin-right: 8px; }
+  .landing-steps {
+    display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+    gap: 10px 18px; padding: 22px 32px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2);
+  }
+  .landing-steps .step { display: flex; align-items: center; gap: 8px; }
+  .landing-steps .step b { color: var(--text); font-weight: 500; }
+  .landing-steps .step-num {
+    display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
+    border-radius: 50%; background: var(--surface-2); font-size: 10px; font-weight: 600; color: var(--text); flex-shrink: 0;
+  }
+  .landing-steps .divider { color: var(--text-3); }
+  .landing-trust {
+    text-align: center; padding: 16px 32px; border-bottom: 1px solid var(--border);
+    font-size: 13px; color: var(--text-3);
+  }
+  @media (min-width: 900px) {
+    .landing-shell { height: 100dvh; overflow: hidden; }
+    .landing-hero-row { flex-direction: row; align-items: center; gap: 64px; }
+    .landing-copy, .landing-mockup { flex: 1; min-width: 0; }
+    .landing-features { flex-direction: row; gap: 22px; }
+  }
   .nav-link { position: relative; padding: 8px 1px; font-size: 14px; font-weight: 500; text-decoration: none; transition: color .2s ease; }
   .nav-link::after {
     content: ""; position: absolute; left: 0; right: 0; bottom: -13px; height: 2px; background: var(--text);
@@ -273,33 +300,26 @@ function installGroup(inst: UserInstallationRow, csrfToken: string): string {
   </div>`;
 }
 
-function featureCard(title: string, body: string): string {
-  return `<div class="card" style="padding:20px">
-    <div style="font-weight:600;font-size:14px;margin-bottom:6px">${escapeHtml(title)}</div>
-    <div style="font-size:13px;color:var(--text-2)">${escapeHtml(body)}</div>
-  </div>`;
-}
-
 function commentMockup(): string {
-  return `<div class="card fade-up" style="max-width:600px;margin:56px auto 0;padding:0;overflow:hidden;text-align:left;animation-delay:.12s">
-    <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2)">
+  return `<div class="card fade-up landing-mockup" style="max-width:440px;width:100%;margin:0 auto;padding:0;overflow:hidden;text-align:left;animation-delay:.15s">
+    <div style="padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-2)">
       <span class="mono">src/loop.js</span>
       <span style="color:var(--text-3)">&middot;</span>
       <span>lines 2&ndash;6</span>
     </div>
-    <div style="padding:18px;display:flex;gap:12px">
-      <div style="width:24px;height:24px;border-radius:6px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px">✕</div>
+    <div style="padding:16px;display:flex;gap:11px">
+      <div style="width:22px;height:22px;border-radius:6px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px">✕</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;margin-bottom:5px">critical &middot; bug</div>
-        <div style="font-size:13px;color:var(--text-2);margin-bottom:12px">The while loop condition never changes because <code class="mono">i</code> is never incremented &mdash; infinite loop.</div>
-        <div class="mono" style="font-size:12.5px;background:var(--surface-2);border-radius:8px;padding:10px 0;line-height:1.7">
-          <div style="padding:0 12px">let i = 0;</div>
-          <div style="padding:0 12px">while (i &lt; 5) {</div>
-          <div style="padding:0 12px">&nbsp;&nbsp;console.log("Stuck at:", i);</div>
-          <div style="background:color-mix(in srgb, var(--text) 9%, transparent);padding:0 12px">+&nbsp;&nbsp;i++;</div>
-          <div style="padding:0 12px">}</div>
+        <div style="font-size:12.5px;font-weight:500;margin-bottom:4px">critical &middot; bug</div>
+        <div style="font-size:12.5px;color:var(--text-2);margin-bottom:11px">The while loop condition never changes because <code class="mono">i</code> is never incremented &mdash; infinite loop.</div>
+        <div class="mono" style="font-size:12px;background:var(--surface-2);border-radius:8px;padding:9px 0;line-height:1.65">
+          <div style="padding:0 11px">let i = 0;</div>
+          <div style="padding:0 11px">while (i &lt; 5) {</div>
+          <div style="padding:0 11px">&nbsp;&nbsp;console.log("Stuck at:", i);</div>
+          <div style="background:color-mix(in srgb, var(--text) 9%, transparent);padding:0 11px">+&nbsp;&nbsp;i++;</div>
+          <div style="padding:0 11px">}</div>
         </div>
-        <div style="margin-top:12px"><span class="btn btn-primary btn-sm" style="cursor:default;pointer-events:none">Commit suggestion</span></div>
+        <div style="margin-top:11px"><span class="btn btn-primary btn-sm" style="cursor:default;pointer-events:none">Commit suggestion</span></div>
       </div>
     </div>
   </div>`;
@@ -308,23 +328,38 @@ function commentMockup(): string {
 function landingPage(): string {
   return layout(
     "MeridianAI",
-    `<nav style="max-width:960px;margin:0 auto;padding:24px;display:flex;justify-content:space-between;align-items:center">
-      <span style="font-weight:700;font-size:16px;letter-spacing:-0.02em">MeridianAI</span>
-      <a href="/login" style="font-size:14px;color:var(--text-2);text-decoration:none">Sign in</a>
-    </nav>
-    <div class="fade-up" style="max-width:640px;margin:70px auto 0;padding:0 24px;text-align:center">
-      <h1 style="font-size:44px;font-weight:600;letter-spacing:-0.03em;line-height:1.15;margin:0 0 16px">AI PR review that knows your whole repo.</h1>
-      <p style="font-size:17px;color:var(--text-2);margin:0 0 36px">Not just the diff. MeridianAI indexes your codebase's call graph so every review understands the blast radius of a change, then posts one summary and a handful of high-value inline suggestions &mdash; with one-click commits.</p>
-      <a href="/login" class="btn btn-primary btn-arrow" style="padding:14px 28px;font-size:15px">
-        Get started
-        <span class="arrow">&rarr;</span>
-      </a>
-    </div>
-    ${commentMockup()}
-    <div class="stagger" style="max-width:960px;margin:64px auto 0;padding:0 24px 80px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px">
-      ${featureCard("Whole-repo context", "Callers and related code, not just the diff.")}
-      ${featureCard("Deterministic rules", "Team rules that always fire, no LLM roulette.")}
-      ${featureCard("One-click fixes", "Suggestion blocks you can commit from the PR.")}
+    `<div class="landing-shell">
+      <nav style="max-width:1080px;width:100%;margin:0 auto;padding:20px 32px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700;font-size:16px;letter-spacing:-0.02em">MeridianAI</span>
+        <a href="/login" style="font-size:14px;color:var(--text-2);text-decoration:none">Sign in</a>
+      </nav>
+      <div class="fade landing-trust">
+        No credit card. No seat limits. Just connect a repo and start reviewing PRs.
+      </div>
+      <div class="landing-hero-row" style="max-width:1080px;width:100%;margin:0 auto;padding:0 32px">
+        <div class="fade-up landing-copy">
+          <div class="eyebrow">AI code review</div>
+          <h1 style="font-size:clamp(30px,4vw,42px);font-weight:600;letter-spacing:-0.03em;line-height:1.15;margin:0 0 16px">AI PR review that knows your whole repo.</h1>
+          <p style="font-size:15.5px;color:var(--text-2);margin:0 0 28px;max-width:440px">Not just the diff. MeridianAI indexes your codebase's call graph so every review understands the blast radius of a change &mdash; then posts one summary and a handful of high-value inline suggestions, with one-click commits.</p>
+          <a href="/login" class="btn btn-primary btn-arrow" style="padding:13px 26px;font-size:15px">
+            Get started
+            <span class="arrow">&rarr;</span>
+          </a>
+          <div class="landing-features">
+            <div><span class="tick">&check;</span>Whole-repo context</div>
+            <div><span class="tick">&check;</span>Deterministic rules</div>
+            <div><span class="tick">&check;</span>One-click fixes</div>
+          </div>
+        </div>
+        ${commentMockup()}
+      </div>
+      <div class="fade landing-steps">
+        <span class="step"><span class="step-num">1</span>Connect a repo &mdash; <b>one click</b></span>
+        <span class="divider">&rarr;</span>
+        <span class="step"><span class="step-num">2</span>We index the <b>call graph</b></span>
+        <span class="divider">&rarr;</span>
+        <span class="step"><span class="step-num">3</span>Every PR gets <b>reviewed automatically</b></span>
+      </div>
     </div>`,
   );
 }
