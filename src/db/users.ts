@@ -98,6 +98,7 @@ export interface UserRepoRow {
   name: string;
   enabled: boolean;
   indexStatus: string;
+  lastIndexedSha: string | null;
   reviewsCount: number;
 }
 
@@ -122,10 +123,11 @@ export async function getUserInstallationsAndRepos(
     name: string | null;
     enabled: boolean | null;
     index_status: string | null;
+    last_indexed_sha: string | null;
     reviews_count: string | null;
   }>(
     `select i.installation_id, i.account, i.account_type, i.status,
-            r.repo_id, r.owner, r.name, r.enabled, r.index_status,
+            r.repo_id, r.owner, r.name, r.enabled, r.index_status, r.last_indexed_sha,
             (select count(*) from reviews rv where rv.repo_id = r.repo_id) as reviews_count
      from user_installations ui
      join installations i on i.installation_id = ui.installation_id
@@ -156,6 +158,7 @@ export async function getUserInstallationsAndRepos(
         name: row.name!,
         enabled: row.enabled!,
         indexStatus: row.index_status!,
+        lastIndexedSha: row.last_indexed_sha,
         reviewsCount: Number(row.reviews_count ?? 0),
       });
     }

@@ -252,7 +252,10 @@ async function enqueueFullIndex(
 ): Promise<void> {
   const job: IndexJob = { kind: "full", installationId, repoId, owner, repo };
   await indexQueue.add("index", job, {
-    jobId: `index-full:${repoId}`,
+    // BullMQ rejects a custom jobId containing ":" unless it splits into
+    // exactly 3 parts (legacy repeatable-job compat) — `index-full:${id}`
+    // has one colon (2 parts) and was silently throwing on every call.
+    jobId: `index-full-${repoId}`,
     attempts: 2,
     backoff: { type: "exponential", delay: 60_000 },
     removeOnComplete: 100,

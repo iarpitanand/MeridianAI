@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import express, { type Request, type Response, Router } from "express";
 import { config } from "../config.js";
-import { getRepoForUser, updateRepoSettings } from "../db/repos.js";
+import { getRepoForUser, setRepoEnabled, updateRepoSettings } from "../db/repos.js";
 import {
   clearInstallationRequest,
   createInstallationRequest,
@@ -48,19 +48,71 @@ function layout(title: string, body: string): string {
   return `<!doctype html>
 <html><head><meta charset="utf-8"><title>${escapeHtml(title)} · MeridianAI</title>
 <style>
-  body { font-family: -apple-system, system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; }
-  a.button { display: inline-block; background: #1a1a1a; color: #fff; padding: 10px 18px; border-radius: 6px; text-decoration: none; }
-  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-  .repo { border: 1px solid #ddd; border-radius: 8px; padding: 14px 16px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; }
-  .badge { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #eee; }
-  .badge.ready { background: #d5f5df; }
-  .badge.indexing, .badge.pending { background: #fdf3d5; }
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    max-width: 760px; margin: 48px auto; padding: 0 20px; color: #1a1a2e; background: #fbfbfd;
+    line-height: 1.5;
+  }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+  header h1 { font-size: 20px; margin: 0; }
+  header span { font-size: 14px; color: #666; }
+  header a { color: #666; }
+  a { color: #3b5bdb; }
+  a.button {
+    display: inline-block; background: #1a1a2e; color: #fff; padding: 10px 18px;
+    border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;
+  }
+  a.button:hover { background: #33334d; }
+  .install-group { margin-top: 28px; }
+  .install-group h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: #888;
+    margin: 0 0 10px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .install-group h2 a { font-size: 12px; text-transform: none; letter-spacing: normal; }
+  .repo {
+    border: 1px solid #e4e4ec; background: #fff; border-radius: 10px; padding: 16px 18px;
+    margin: 8px 0; display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .repo.repo-disabled { opacity: 0.6; }
+  .repo-name { font-weight: 600; font-size: 15px; }
+  .repo-meta { font-size: 13px; color: #777; margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .repo-actions { display: flex; gap: 8px; align-items: center; white-space: nowrap; }
+  .repo-actions a, .repo-actions button {
+    font-size: 13px; padding: 6px 12px; border-radius: 6px; text-decoration: none;
+    border: 1px solid #ddd; background: #fff; cursor: pointer; font-family: inherit;
+  }
+  .repo-actions button.danger { color: #b3261e; border-color: #f0c9c6; }
+  .repo-actions button.danger:hover { background: #fdf1f0; }
+  .repo-actions button.primary { color: #1e7a34; border-color: #c6e6cf; }
+  .repo-actions button.primary:hover { background: #f0fbf3; }
+  .badge {
+    font-size: 11px; padding: 2px 9px; border-radius: 10px; background: #eee;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .badge.ready { background: #d5f5df; color: #1e7a34; }
+  .badge.indexing, .badge.pending { background: #fdf3d5; color: #93650a; }
+  .badge.failed { background: #fbe1df; color: #b3261e; }
+  .badge.paused { background: #eee; color: #666; }
+  code.sha { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; }
   form.settings label { display: block; margin-top: 14px; font-weight: 600; }
-  form.settings input, form.settings select, form.settings textarea { width: 100%; padding: 6px 8px; margin-top: 4px; box-sizing: border-box; }
+  form.settings input, form.settings select, form.settings textarea {
+    width: 100%; padding: 8px 10px; margin-top: 4px; box-sizing: border-box;
+    border: 1px solid #ddd; border-radius: 6px; font-family: inherit; font-size: 14px;
+  }
   form.settings button { margin-top: 18px; }
 </style></head>
 <body>${body}</body></html>`;
 }
+
+const INDEX_STATUS_LABEL: Record<string, string> = {
+  ready: "Ready",
+  indexing: "Indexing…",
+  pending: "Queued",
+  failed: "Failed",
+};
 
 async function requireUser(req: Request, res: Response): Promise<UserRow | null> {
   const session = await getSessionFromRequest(req);
@@ -214,27 +266,46 @@ dashboardRouter.get("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const rows = installations
-    .flatMap((inst) =>
-      inst.repos.map((r) => {
-        const badgeClass = r.indexStatus === "ready" ? "ready" : "indexing";
-        const badgeLabel = r.indexStatus === "ready" ? "Ready" : r.indexStatus;
-        return `<div class="repo">
-          <div><strong>${escapeHtml(inst.account)}/${escapeHtml(r.name)}</strong>
-            <span class="badge ${badgeClass}">${escapeHtml(badgeLabel)}</span>
-            ${r.enabled ? "" : '<span class="badge">disabled</span>'}
-            <div>${r.reviewsCount} review(s) run</div>
-          </div>
-          <a href="/repos/${r.repoId}/settings">Settings</a>
-        </div>`;
-      }),
-    )
+  const groups = installations
+    .map((inst) => {
+      const manageUrl = `https://github.com/settings/installations/${inst.installationId}`;
+      const repoRows = inst.repos
+        .map((r) => {
+          const badgeClass = !r.enabled ? "paused" : (r.indexStatus in INDEX_STATUS_LABEL ? r.indexStatus : "pending");
+          const badgeLabel = !r.enabled ? "Disconnected" : (INDEX_STATUS_LABEL[r.indexStatus] ?? r.indexStatus);
+          const shaHtml = r.lastIndexedSha
+            ? `<code class="sha">${escapeHtml(r.lastIndexedSha.slice(0, 7))}</code>`
+            : "";
+          return `<div class="repo${r.enabled ? "" : " repo-disabled"}">
+            <div>
+              <div class="repo-name">${escapeHtml(inst.account)}/${escapeHtml(r.name)}</div>
+              <div class="repo-meta">
+                <span class="badge ${badgeClass}">${escapeHtml(badgeLabel)}</span>
+                ${shaHtml}
+                <span>${r.reviewsCount} review(s) run</span>
+              </div>
+            </div>
+            <div class="repo-actions">
+              <a href="/repos/${r.repoId}/settings">Settings</a>
+              <form method="post" action="/repos/${r.repoId}/toggle" style="display:inline">
+                <input type="hidden" name="csrf_token" value="${escapeHtml(session.csrfToken)}">
+                <button type="submit" class="${r.enabled ? "danger" : "primary"}">${r.enabled ? "Disconnect" : "Reconnect"}</button>
+              </form>
+            </div>
+          </div>`;
+        })
+        .join("\n");
+      return `<div class="install-group">
+        <h2><span>${escapeHtml(inst.account)}</span> <a href="${manageUrl}" target="_blank" rel="noopener">Manage on GitHub &rarr;</a></h2>
+        ${repoRows}
+      </div>`;
+    })
     .join("\n");
 
   res.send(
     layout(
       "Repos",
-      `${header}<p><a class="button" href="${installUrl}">Connect repositories</a></p>${rows}`,
+      `${header}<p><a class="button" href="${installUrl}">Connect repositories</a></p>${groups}`,
     ),
   );
 });
@@ -264,6 +335,34 @@ dashboardRouter.get("/install/setup", async (req: Request, res: Response) => {
   res.redirect("/");
 });
 
+// ---- Quick disconnect/reconnect (durable: the webhook upsert path never
+// re-enables a disabled repo, so this sticks until reversed here) ----
+
+dashboardRouter.post("/repos/:repoId/toggle", async (req: Request, res: Response) => {
+  const user = await requireUser(req, res);
+  if (!user) return;
+
+  const session = await getSessionFromRequest(req);
+  if (!session || req.body.csrf_token !== session.csrfToken) {
+    res.status(403).send(layout("Forbidden", "<p>Invalid form submission — please reload the page and try again.</p>"));
+    return;
+  }
+
+  const repoId = Number(req.params.repoId);
+  if (!Number.isInteger(repoId)) {
+    res.status(400).send(layout("Not found", "<p>Invalid repo id.</p>"));
+    return;
+  }
+  const repo = await getRepoForUser(user.id, repoId);
+  if (!repo) {
+    res.status(404).send(layout("Not found", "<p>Repo not found, or you don't have access to it.</p>"));
+    return;
+  }
+
+  await setRepoEnabled(repoId, !repo.enabled);
+  res.redirect("/");
+});
+
 // ---- Repo settings ----
 
 function renderSettingsForm(repoLabel: string, cfg: Partial<MeridianConfig>, enabled: boolean, csrfToken: string, saved: boolean): string {
@@ -275,7 +374,7 @@ function renderSettingsForm(repoLabel: string, cfg: Partial<MeridianConfig>, ena
 ${saved ? "<p><strong>Saved.</strong></p>" : ""}
 <form class="settings" method="post">
   <input type="hidden" name="csrf_token" value="${escapeHtml(csrfToken)}">
-  <label><input type="checkbox" name="enabled" ${enabled ? "checked" : ""}> Enabled</label>
+  <label><input type="checkbox" name="enabled" ${enabled ? "checked" : ""}> Connected (uncheck to disconnect — same as the button on the repo list)</label>
   <label>Depth
     <select name="depth">
       ${(["chill", "standard", "strict"] as const)

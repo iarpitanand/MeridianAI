@@ -131,3 +131,13 @@ export async function updateRepoSettings(
     [repoId, update.enabled, JSON.stringify(update.config)],
   );
 }
+
+/** Disconnect/reconnect: leaves config + index data untouched. Durable — the
+ * webhook upsert path never resets `enabled`, so a disconnected repo stays
+ * disconnected until explicitly reconnected here. */
+export async function setRepoEnabled(repoId: number, enabled: boolean): Promise<void> {
+  await query(`update repos set enabled = $2, updated_at = now() where repo_id = $1`, [
+    repoId,
+    enabled,
+  ]);
+}
