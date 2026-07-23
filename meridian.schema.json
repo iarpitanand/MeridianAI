@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MeridianAI repo config",
+  "description": "Optional config for MeridianAI's PR reviews. Everything here is optional — an empty file gives a good default review.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "depth": {
+      "type": "string",
+      "enum": ["chill", "standard", "strict"],
+      "description": "Review intensity preset (sets max_comments/min_confidence/min_severity, individually overridable)."
+    },
+    "max_comments": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Hard cap on inline comments per PR."
+    },
+    "min_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Drop AI findings below this confidence score."
+    },
+    "min_severity": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"],
+      "description": "Drop AI findings below this severity."
+    },
+    "review_drafts": {
+      "type": "boolean",
+      "description": "Review draft PRs (default: false)."
+    },
+    "ignore": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Glob patterns for paths MeridianAI should never review."
+    },
+    "focus": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Glob patterns for paths reviewed with 'strict' thresholds regardless of `depth`."
+    },
+    "instructions": {
+      "type": "string",
+      "description": "Free-text team preferences injected into the reviewer prompt."
+    },
+    "categories": {
+      "type": "object",
+      "additionalProperties": { "type": "boolean" },
+      "description": "Turn whole finding categories on/off, e.g. { bug: true, style: false }."
+    },
+    "rules": {
+      "type": "array",
+      "description": "Deterministic rules that always fire (bypass the AI critic).",
+      "items": {
+        "type": "object",
+        "required": ["name", "pattern", "message", "severity"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "pattern": { "type": "string", "description": "Regex tested against added lines." },
+          "message": { "type": "string" },
+          "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] }
+        }
+      }
+    }
+  }
+}

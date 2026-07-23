@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=./meridian.schema.json
+# MeridianAI configuration. Drop this at your repo root as `.meridian.yml`.
+# Everything is optional — an empty file gives a good default review.
+
+# Review intensity: chill | standard | strict
+# (sets sensible max_comments / min_confidence / min_severity you can still override)
+depth: standard
+
+# Hard cap on inline comments per PR.
+max_comments: 10
+
+# Review draft PRs?
+review_drafts: false
+
+# Paths MeridianAI should never review.
+ignore:
+  - "dist/**"
+  - "**/*.generated.ts"
+  - "vendor/**"
+
+# Paths reviewed extra-carefully — always uses "strict" thresholds here,
+# regardless of the `depth` setting above.
+focus:
+  - "src/auth/**"
+
+# Free-text team preferences, injected into the reviewer prompt.
+instructions: |
+  We prefer early returns over nested conditionals.
+  This is a fintech app — flag any floating-point math on money.
+
+# Turn whole categories on/off. (style defaults off; a linter usually covers it.)
+categories:
+  bug: true
+  security: true
+  perf: true
+  logic: true
+  style: false
+
+# Deterministic rules. These ALWAYS fire when matched (they bypass the AI critic)
+# and are badged "team rule" in the PR. `pattern` is a regex over added lines.
+rules:
+  - name: no-raw-sql
+    pattern: 'execute\(.*\$\{'
+    message: "Possible SQL injection — use parameterised queries, not template literals."
+    severity: high
+  - name: no-console-log
+    pattern: 'console\.log\('
+    message: "Remove console.log before merging."
+    severity: low

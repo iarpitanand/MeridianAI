@@ -1,0 +1,39 @@
+{
+  "name": "meridianai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI PR review that knows your whole repo, not just the diff.",
+  "scripts": {
+    "dev:server": "tsx watch src/server.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "build": "tsc",
+    "start:server": "node dist/server.js",
+    "start:worker": "node dist/worker.js",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.113.0",
+    "bullmq": "^5.34.0",
+    "dotenv": "^16.4.7",
+    "express": "^5.0.0",
+    "ioredis": "^5.4.2",
+    "js-yaml": "^5.2.1",
+    "micromatch": "^4.0.8",
+    "pg": "^8.13.1",
+    "probot": "^13.4.4",
+    "tree-sitter-wasms": "^0.1.13",
+    "web-tree-sitter": "^0.24.7",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/micromatch": "^4.0.9",
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
