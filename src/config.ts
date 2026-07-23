@@ -72,6 +72,9 @@ const schema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   REVIEW_MODEL: z.string().default("claude-sonnet-5"),
   CRITIC_MODEL: z.string().default("claude-haiku-4-5-20251001"),
+
+  // ---- Linear requirements check (optional, additive: skipped entirely without a key) ----
+  LINEAR_API_KEY: z.string().optional(),
 });
 
 export const config = schema.parse(process.env);

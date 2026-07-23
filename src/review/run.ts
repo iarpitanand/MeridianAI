@@ -7,9 +7,11 @@ import { parseDiff, type DiffFile } from "./diff.js";
 import { loadMeridianConfig } from "./meridianConfig.js";
 import { runPipeline } from "./pipeline.js";
 import type { InlineComment } from "./types.js";
+import { checkAgainstLinearIssue, extractLinearIssueId, fetchLinearIssue, renderLinearComment } from "./linear.js";
 
 const MARKER = "<!-- meridianai:summary -->";
 const INFO_MARKER = "<!-- meridianai:repo-info -->";
+const LINEAR_MARKER = "<!-- meridianai:linear-check -->";
 const CHECK_NAME = "MeridianAI review";
 
 type Octo = InstanceType<typeof ProbotOctokit>;
@@ -115,6 +117,13 @@ export async function runReview(octokit: Octo, job: ReviewJob): Promise<void> {
       repo,
       prNumber,
       `${MARKER}\n${result.summary}`,
+    );
+
+    // 7b. Best-effort Linear requirements check — a fully separate, additional
+    // comment. Isolated behind its own catch so nothing in here can ever
+    // affect the review's own status or the comments/check above.
+    await checkLinearRequirements(octokit, owner, repo, prNumber, pr.body ?? "", diff).catch(
+      () => undefined,
     );
 
     // 8. Persist findings for the learning loop
@@ -278,6 +287,64 @@ async function persistFindings(
        values ($1,$2,$3,$4,$5,$6,$7)`,
       [reviewId, c.path, c.startLine, c.endLine, c.severity, c.confidence, c.body],
     );
+  }
+}
+
+/**
+ * If the PR body references a Linear issue (`id: "TEAM-123"`), fetches that
+ * issue and posts a separate pass/fail comment checking the diff against its
+ * description. Silently does nothing if LINEAR_API_KEY isn't set, no issue id
+ * is found, the issue can't be fetched, or the LLM check doesn't return a
+ * usable result — this feature never blocks or alters the main review.
+ */
+async function checkLinearRequirements(
+  octokit: Octo,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  prBody: string,
+  diff: string,
+): Promise<void> {
+  const issueId = extractLinearIssueId(prBody);
+  if (!issueId) return;
+
+  const issue = await fetchLinearIssue(issueId);
+  if (!issue) return;
+
+  const result = await checkAgainstLinearIssue(issue, diff);
+  if (!result) return;
+
+  await upsertMarkedComment(
+    octokit,
+    owner,
+    repo,
+    prNumber,
+    LINEAR_MARKER,
+    `${LINEAR_MARKER}\n${renderLinearComment(issue, result)}`,
+  );
+}
+
+/** Same upsert-by-marker pattern as upsertSummaryComment, kept separate and
+ * generic so the Linear check never touches the existing summary-comment path. */
+async function upsertMarkedComment(
+  octokit: Octo,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  marker: string,
+  body: string,
+): Promise<void> {
+  const comments = await octokit.paginate(octokit.rest.issues.listComments, {
+    owner,
+    repo,
+    issue_number: prNumber,
+    per_page: 100,
+  });
+  const mine = comments.find((c) => c.body?.includes(marker));
+  if (mine) {
+    await octokit.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+  } else {
+    await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
   }
 }
 
